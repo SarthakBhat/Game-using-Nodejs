@@ -50,6 +50,10 @@ var Player = function(id){
 		self.pressAttack=false;
 		self.mouseAngle=0;
 		self.maxSpd=10;
+		self.hp =10;
+		self.hpMax = 10;
+		self.score = 0;
+		
 		
 		
       var updateSpd = function(){
@@ -88,13 +92,18 @@ var Player = function(id){
 		      x:self.x,
 		      y:self.y,
 		      number:self.number,
+			  hp:self.hp,
+			  hpMax:self.hpMax,
+			  score:self.score,
 		  };
 	  }  
 	  self.getUpdatePack = function(){
 		  return{
-			id:player.id,
-			x:player.x,
-			y:player.y,
+			id:self.id,
+			x:self.x,
+			y:self.y,
+			hp:self.hp,
+			score:self.score,
 		};
 	  }	
 		  
@@ -106,7 +115,7 @@ var Player = function(id){
 		
 	}
 	
-console.log("After player declaration");	
+
 	
 	 
 	Player.list = {};	
@@ -126,7 +135,19 @@ console.log("After player declaration");
 		if(data.inputId === 'mouseAngle')
 			player.mouseAngle = data.state;
 	});	
-	}
+	
+	 socket.emit('init',{
+		 player:Player.getAllInitPack(),
+		 bullet:Bullet.getAllInitPack(),
+	});
+}	
+	
+	Player.getAllInitPack = function(){
+		var players = [];
+		for(var i in Player.list)
+			players.push(Player.list[i].getInitPack());
+		return players;
+	}	
 	Player.onDisconnect = function(socket){
 		delete Player.list[socket.id];
 		removePack.player.push(socket.id);
@@ -136,7 +157,7 @@ console.log("After player declaration");
 	    for(var i in Player.list){
 	    var player = Player.list[i];
 		player.update();
-		pack.push(self.getUpdatePack());	
+		pack.push(player.getUpdatePack());	
 		
     }
 	return pack;
@@ -159,6 +180,16 @@ console.log("Before Bullet");
 		 for(var i in Player.list){
 			 var p = Player.list[i];
 			 if(self.getDistance(p)<24 && self.parent !== p.id){
+				 p.hp -=1;
+				 if(p.hp <= 0){
+				   var shooter = Player.list[self.parent];
+				   if(shooter)
+					  shooter.score += 1;
+				   p.hp = p.hpMax;
+				   p.x = Math.random() * 500;
+				   p.y = Math.random() * 500;
+				 }
+				 
 				 self.toRemove = true;
 			 }
 		 }	 
@@ -173,9 +204,9 @@ console.log("Before Bullet");
 	 }	
      self.getUpdatePack = function(){
         return{		
-            id:bullet.id,
-			 x:bullet.x,
-			 y:bullet.y,
+            id:self.id,
+			 x:self.x,
+			 y:self.y,
 		};
 	 }
      Bullet.list[self.id] = self;
@@ -195,17 +226,17 @@ console.log("Before Bullet");
 			removePack.bullet.push(bullet.id);
 		}	
 		else
-		   pack.push(self.getUpdatePack());	
+		   pack.push(bullet.getUpdatePack());	
 		
     }
 	return pack;
 	}
-    var Users = {
-		"sarthak":"0408",
-		"bob":"marley",
-		"jaime":"lannister",
-		"jon":"snow",
-	}	
+    Bullet.getAllInitPack = function(){
+        var bullets = [];
+        for(var i in Bullet.list)
+          bullets.push(Bullet.list[i].getInitPack());
+        return bullets;
+    }		
      var isValidPassword = function(data,cb){
 	    db.account.find({username:data.username,password:data.password},function(err,res){
 			if(res.length > 0)
